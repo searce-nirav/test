@@ -1,0 +1,38 @@
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  labels:
+    {{- include "helm-dashboard.labels" . | nindent 4 }}
+  name: {{ .Values.version}}-{{ .Values.app }}
+spec:
+  gateways:
+  - {{ .Values.gateway.istioGatewayNamespace }}/{{ tpl .Values.gateway.istioGatewayTemplate.name.internal . }}
+  {{- if .Values.gateway.enableExternalAccess }}
+  - {{ .Values.gateway.istioGatewayNamespace }}/{{ tpl .Values.gateway.istioGatewayTemplate.name.external . }}
+  {{- end }}
+  {{- if .Values.gateway.enablePublicAccess }}
+  - {{ .Values.gateway.istioGatewayNamespace }}/{{ tpl .Values.gateway.istioGatewayTemplate.name.public . }}
+  {{- end }}
+  hosts:
+    - {{ .Values.version}}-{{ .Values.app }}.{{ include "helm-dashboard.routingEnvironment" . }}.{{ .Values.gateway.domain }}
+    - external-{{ .Values.version}}-{{ .Values.app }}.{{ include "helm-dashboard.routingEnvironment" . }}.{{ .Values.gateway.domain }}
+    - {{ .Values.version}}-{{ .Values.app }}.{{.Release.Namespace}}.svc.cluster.local
+    {{- if .Values.gateway.enableExternalAccess }}
+    - {{ .Values.version}}-{{ .Values.app }}.external.{{ include "helm-dashboard.routingEnvironment" . }}.{{ .Values.gateway.domain }}
+    {{- end }}
+    {{- if .Values.gateway.enablePublicAccess }}
+    - {{ .Values.version}}-{{ .Values.app }}.public.{{ include "helm-dashboard.routingEnvironment" . }}.{{ .Values.gateway.domain }}
+    {{- end }}
+  http:
+  - route:
+    - destination:
+        host: {{ .Values.version}}-{{ .Values.app }}.{{.Release.Namespace}}.svc.cluster.local
+        {{- with .Values.gateway.port }}
+        port:
+        {{- toYaml . | nindent 10 }}
+        {{- end}}
+        subset: {{ .Values.version }}
+      {{- with .Values.gateway.headers }}
+      headers:
+      {{- toYaml . | nindent 8 }}
+      {{- end}}
